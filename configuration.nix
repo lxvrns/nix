@@ -2,7 +2,7 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   imports =
@@ -10,16 +10,42 @@
       ./hardware-configuration.nix
     ];
 
-  # Bootloader.
+  # Bootloader
+    # systemd
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.efi.efiSysMountPoint = "/boot/efi";
+  
+    # grub
+  #boot.loader = {
+  #  efi = {
+  #    canTouchEfiVariables = true;
+  #    efiSysMountPoint = "/boot/efi";
+  #  };
+  #  grub = {
+  #    enable = true;
+  #    version = 2;
+  #    efiSupport = true;
+  #    devices = [ "nodev" ];
+  #    useOSProber = true;
+  #  };
+  #};
 
+  # unstable fix (maybe) nope
+  #boot.kernelPackages = pkgs.linuxPackages_latest;
+  hardware.bumblebee = {
+    enable = true;
+    pmMethod = "none";
+  };
+  
+  
+  boot.cleanTmpDir = true;
+  boot.supportedFilesystems = [ "ntfs" ];
   # Setup keyfile
   boot.initrd.secrets = {
     "/crypto_keyfile.bin" = null;
   };
-
+  boot.initrd.systemd.enable = true;
   # Enable swap on luks
   boot.initrd.luks.devices."luks-45d017f2-4c39-4676-937c-e922f533638d".device = "/dev/disk/by-uuid/45d017f2-4c39-4676-937c-e922f533638d";
   boot.initrd.luks.devices."luks-45d017f2-4c39-4676-937c-e922f533638d".keyFile = "/crypto_keyfile.bin";
@@ -58,7 +84,20 @@
   # Enable the KDE Plasma Desktop Environment.
   services.xserver.displayManager.sddm.enable = true;
   services.xserver.desktopManager.plasma5.enable = true;
-
+  #services.xserver.displayManager.lightdm.enable = true;
+  services.flatpak.enable = true;
+  #services.xserver.windowManager.nimdow.enable = true;
+  #services.xserver.displayManager.defaultSession = "none+qtile";
+  #services.xserver.windowManager.qtile.enable = true;
+  #services.xserver.windowManager.i3 = {
+  #  enable = true;
+  #  extraPackages = with pkgs; [
+  #    dmenu # app launcher
+  #    i3lock # screen locker
+  #    i3status # status bar
+  #    #i3blocks
+  #  ];
+  #};
   # Configure keymap in X11
   services.xserver = {
     layout = "us";
@@ -84,7 +123,11 @@
     # no need to redefine it in your config for now)
     #media-session.enable = true;
   };
-
+  
+  # NVIDIA
+  services.xserver.videoDrivers = [ "modesetting" ];
+  #hardware.opengl.enable = true;
+  
   # Enable touchpad support (enabled default in most desktopManager).
   # services.xserver.libinput.enable = true;
 
@@ -94,34 +137,100 @@
     description = "L";
     extraGroups = [ "networkmanager" "wheel" ];
     packages = with pkgs; [
-      firefox
-      kate
-    #  thunderbird
-    ];
+      #
+   ];
   };
 
   # Enable automatic login for the user.
-  services.xserver.displayManager.autoLogin.enable = true;
-  services.xserver.displayManager.autoLogin.user = "lxvrns";
+  #services.xserver.displayManager.autoLogin.enable = true;
+  #services.xserver.displayManager.autoLogin.user = "lxvrns";
 
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
-
+  
+  # flakes
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
+  #syspkgs
   #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-  #  wget
-  ];
+    wget
+    rofi
+    fd
+    dmenu
+    fzf
+    nim
+    gparted
+    sddm-kcm
+    libsForQt5.qtstyleplugin-kvantum
+    ripgrep
+    zathura
+    fish
+    st
+    obsidian
+    unzip
+    helix
+    git
+    dash
+    neofetch
+    firefox
+    vscodium
+    mpv
+    bitwarden
+    cmatrix    
+    ];
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
-  # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
+  programs.mtr.enable = true;
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true;
+  };
 
+  programs.fish.enable = true;
+  users.defaultUserShell = pkgs.fish;
+  environment.shells = with pkgs; [ fish ];
+  environment.binsh = "${pkgs.dash}/bin/dash";
+
+  # fonts
+  fonts.fonts = with pkgs; [
+  noto-fonts
+  noto-fonts-cjk
+  noto-fonts-emoji
+  hasklig
+  hack-font
+  powerline-fonts
+  siji
+  unifont
+  liberation_ttf
+  fira-code
+  fira-code-symbols
+  mplus-outline-fonts.githubRelease
+  dina-font
+  proggyfonts
+  ubuntu_font_family
+];
+fonts.fontconfig = {
+  antialias = true;
+  hinting.enable = true;
+  hinting.autohint = true;
+  hinting.style = "hintfull";
+};
+fonts.fontconfig.defaultFonts = {
+  serif = [ "Source Serif Pro" ];
+  sansSerif = [ "Source Sans Pro" ];
+  monospace = [ "Ubuntu Mono" ];
+};
+
+fonts.fontconfig.subpixel = {
+  rgba = "rgb";
+  lcdfilter = "default";
+};
+  
+  
   # List services that you want to enable:
 
   # Enable the OpenSSH daemon.
@@ -140,5 +249,4 @@
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
   system.stateVersion = "22.11"; # Did you read the comment?
-
 }
